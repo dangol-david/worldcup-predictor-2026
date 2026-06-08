@@ -1,0 +1,77 @@
+========================================================================
+ PREDICT & WIN — 2026 FIFA WORLD CUP  ·  HOW TO RUN
+========================================================================
+
+WHAT YOU NEED
+  - A Windows / Mac / Linux computer (this will be the "host").
+  - Python 3.10 or newer.
+
+------------------------------------------------------------------------
+1) INSTALL PYTHON (one time)
+------------------------------------------------------------------------
+  Download from https://www.python.org/downloads/
+  On Windows: during install, TICK "Add Python to PATH".
+
+------------------------------------------------------------------------
+2) UNZIP
+------------------------------------------------------------------------
+  Right-click the zip -> Extract All.
+  You get a folder called  worldcup_predictor  that contains app.py.
+
+------------------------------------------------------------------------
+3) OPEN A TERMINAL IN THAT FOLDER
+------------------------------------------------------------------------
+  Windows (PowerShell):
+     cd C:\path\to\worldcup_predictor
+  (the folder that directly contains app.py)
+
+------------------------------------------------------------------------
+4) INSTALL DEPENDENCIES (one time)
+------------------------------------------------------------------------
+     pip install -r requirements.txt
+
+------------------------------------------------------------------------
+5) RUN IT
+------------------------------------------------------------------------
+     streamlit run app.py
+
+  Opens at  http://localhost:8501
+  The database (worldcup.db) is already included, so all 104 fixtures,
+  Nepal kickoff times, and 48 team squads are ready immediately.
+
+------------------------------------------------------------------------
+LET YOUR 10 PLAYERS JOIN (same Wi-Fi / LAN)
+------------------------------------------------------------------------
+  After "streamlit run", it prints a NETWORK URL like:
+     http://192.168.0.100:8501
+  Share THAT url with players on the same Wi-Fi.
+  - On the host, allow Python through the Windows Firewall (Private
+    networks) when prompted.
+  - Keep the host computer running while people play.
+  - Everyone shares one database, so scores update live for all.
+
+------------------------------------------------------------------------
+ADMIN (post results / manage squads)
+------------------------------------------------------------------------
+  Open the  ⚙️ Admin  tab.  Password:  admin123
+  (change it by editing app.py — search for "admin123")
+    - "Submit a result": enter score + Man of the Match + First Scorer;
+      everyone's predictions are scored instantly.
+    - "Manage squads & coaches": add/edit a team's coach + roster.
+
+------------------------------------------------------------------------
+REBUILD THE DATA (only if needed)
+------------------------------------------------------------------------
+     python seed_data.py --reset   # 104 fixtures (Nepal time)
+     python seed_squads.py         # all 48 squads + coaches
+
+------------------------------------------------------------------------
+SCORING (quick reference)
+------------------------------------------------------------------------
+  Winner +1 · Goal diff +2 · Exact score +5 · MOM +3 · First scorer +4
+  Stage x: Group 1 · R32 2 · R16 3 · QF 4 · SF 5 · 3rd 2 · FINAL 6
+  ⭐ Banker x2 (one match/day)   🐺 Underdog +3 (minority correct pick)
+  ⏰ Picks lock 3 HOURS before kickoff (Nepal time)
+
+  Full rulebook: see GAME_RULES.md
+========================================================================
