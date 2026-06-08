@@ -27,6 +27,7 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 python seed_data.py                # populates 104 matches (one-time)
+python seed_squads.py              # loads all 48 squads + coaches (optional)
 python game_logic.py               # quick scoring self-test (optional)
 streamlit run app.py
 ```
@@ -167,6 +168,10 @@ Example: predicting the exact Final scoreline + MOM + First Goal Scorer is
 
 - **Edit fixtures**: tweak the `GROUP_STAGE`, `ROUND_OF_32`, etc. lists in
   `seed_data.py`, then `python seed_data.py --reset`.
+- **Edit squads / coaches**: tweak the `SQUADS` dict in `seed_squads.py` then
+  `python seed_squads.py` (safe to re-run; `--check` validates team names
+  against the fixtures without writing). Or edit any team live in the app via
+  ⚙️ Admin → "Manage squads & coaches".
 - **Change the admin password**: search `admin123` in `app.py`.
 - **Adjust scoring**: edit the `POINTS_*` constants or `STAGE_MULTIPLIER` in
   `game_logic.py`. The next admin result submission re-scores everything.
