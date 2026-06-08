@@ -442,8 +442,13 @@ h1, h2, h3, h4 { color: var(--text); font-family: 'Manrope', sans-serif; }
     font-family: 'Space Mono', monospace; color: var(--muted);
     font-size: 0.68rem; letter-spacing: 0.12em; margin-top: 2px;
 }
+.squad-card .sq-pos {
+    font-family: 'Space Mono', monospace; color: var(--cyan);
+    font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+    margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--border);
+}
 .squad-card .sq-list {
-    margin: 10px 0 0 0; padding-left: 22px; columns: 2; column-gap: 18px;
+    margin: 4px 0 0 0; padding-left: 22px; columns: 2; column-gap: 18px;
 }
 .squad-card .sq-list li {
     font-family: 'Manrope', sans-serif; font-size: 0.86rem; color: var(--text);
@@ -656,26 +661,43 @@ def render_match_grid(matches: list[dict], cols: int = 2) -> None:
             st.markdown(render_match_card(m), unsafe_allow_html=True)
 
 
-def _player_field(container, label: str, players: list[str],
+def _player_field(container, label: str, players: list[dict],
                   existing: str | None, key: str) -> str:
     """
-    Player-name input. If a squad roster is available, show a dropdown of real
-    players plus a free-text override for anyone not listed; otherwise plain text.
-    Returns the chosen name ("" if none). Safe to call inside an st.form.
+    Player-name input. If squad rosters are available, show a dropdown grouped
+    by team and tagged with each player's position (e.g. "Mexico · GK · Ochoa"),
+    plus a free-text override for anyone not listed. Returns the chosen name
+    ("" if none). Safe to call inside an st.form.
+
+    `players` is the structured list from db.players_for_match():
+    [{'team', 'pos', 'name'}, ...], already ordered Team A (GK→FW) then Team B.
     """
     if players:
-        opts = ["—"] + players
-        if existing and existing not in opts:
-            opts.insert(1, existing)
-        idx = opts.index(existing) if existing in opts else 0
-        sel = container.selectbox(label, opts, index=idx, key=f"{key}_sel")
+        # Each option is (team, pos, name); "" sentinel = no pick.
+        none_opt = ("", "", "")
+        opts = [none_opt] + [(p["team"], p["pos"], p["name"]) for p in players]
+        names = [o[2] for o in opts]
+        if existing and existing not in names:
+            opts.insert(1, ("(saved)", "", existing))
+            names = [o[2] for o in opts]
+        idx = names.index(existing) if existing in names else 0
+
+        def _fmt(o: tuple) -> str:
+            team, pos, name = o
+            if not name:
+                return "— none —"
+            tag = f"{pos} · " if pos else ""
+            return f"{team} · {tag}{name}" if team else f"{tag}{name}"
+
+        sel = container.selectbox(label, opts, index=idx, format_func=_fmt,
+                                  key=f"{key}_sel")
         other = container.text_input(
             f"{label} — or type a name not in the list",
             value="", key=f"{key}_txt",
-            placeholder="…type another name",
+            placeholder="…not listed? type a name",
             label_visibility="collapsed",
         )
-        return other.strip() or ("" if sel == "—" else sel)
+        return other.strip() or sel[2]
     return container.text_input(label, value=existing or "", key=key).strip()
 
 
@@ -1444,17 +1466,34 @@ def tab_squads() -> None:
                 sq = squads.get(team)
                 with cols[j]:
                     if sq:
-                        players = [p for p in (sq["players"] or "").split("\n") if p.strip()]
+                        roster = db.get_squad_roster(team)
                         coach = escape(sq["coach"]) if sq["coach"] else "—"
-                        plist = "".join(
-                            f'<li>{escape(p)}</li>' for p in players
-                        ) or '<li style="color:#8A95B0;">No players listed.</li>'
+                        pos_labels = {"GK": "Goalkeepers", "DF": "Defenders",
+                                      "MF": "Midfielders", "FW": "Forwards"}
+                        groups_html = ""
+                        for pos in db.POSITIONS:
+                            members = [r["name"] for r in roster if r["pos"] == pos]
+                            if not members:
+                                continue
+                            items = "".join(f'<li>{escape(n)}</li>' for n in members)
+                            groups_html += (
+                                f'<div class="sq-pos">{pos_labels[pos]}</div>'
+                                f'<ol class="sq-list">{items}</ol>'
+                            )
+                        # any players with no/unknown position
+                        rest = [r["name"] for r in roster if r["pos"] not in db.POSITIONS]
+                        if rest:
+                            items = "".join(f'<li>{escape(n)}</li>' for n in rest)
+                            groups_html += f'<ol class="sq-list">{items}</ol>'
+                        if not groups_html:
+                            groups_html = ('<div style="color:#8A95B0;">'
+                                           'No players listed.</div>')
                         st.markdown(f"""
 <div class="squad-card">
   <div class="sq-head">{flag(team)} <span>{escape(team)}</span></div>
   <div class="sq-coach">COACH · {coach}</div>
-  <div class="sq-count">{len(players)} players</div>
-  <ol class="sq-list">{plist}</ol>
+  <div class="sq-count">{len(roster)} players</div>
+  {groups_html}
 </div>
 """, unsafe_allow_html=True)
                     else:
@@ -1549,20 +1588,37 @@ def tab_admin() -> None:
         team = st.selectbox("Team", real_teams, format_func=_team_label,
                             key="adm_sq_team")
         existing = db.get_squad(team)
+        roster = db.get_squad_roster(team)
+        pos_meta = [("GK", "Goalkeepers"), ("DF", "Defenders"),
+                    ("MF", "Midfielders"), ("FW", "Forwards")]
+        # Pre-fill each position box (players with no saved position go under GK
+        # so nothing is lost; the admin can move them).
+        prefill = {p: [] for p, _ in pos_meta}
+        for r in roster:
+            prefill.get(r["pos"], prefill["GK"]).append(r["name"])
+
+        st.caption("One player per line in each box. Positions are saved with "
+                   "each player and shown in the prediction dropdowns.")
         with st.form(f"squad_form_{team}"):
             coach = st.text_input(
                 "Head coach", value=(existing["coach"] if existing else "") or "")
-            roster = st.text_area(
-                "Players (one per line)",
-                value=(existing["players"] if existing else "") or "",
-                height=320,
-                placeholder="Lionel Messi\nEmiliano Martínez\nJulián Álvarez\n…",
-            )
+            cols = st.columns(4)
+            entered: dict[str, str] = {}
+            for (pos, lbl), col in zip(pos_meta, cols):
+                entered[pos] = col.text_area(
+                    lbl, value="\n".join(prefill[pos]), height=300,
+                    key=f"sq_{team}_{pos}",
+                )
             if st.form_submit_button(f"Save squad for {team}"):
+                lines: list[str] = []
+                for pos, _ in pos_meta:
+                    for nm in entered[pos].splitlines():
+                        nm = nm.strip()
+                        if nm:
+                            lines.append(f"{pos}|{nm}")
                 try:
-                    db.upsert_squad(team, coach, roster)
-                    n = len([ln for ln in roster.splitlines() if ln.strip()])
-                    st.success(f"Saved {n} players + coach for {team}.")
+                    db.upsert_squad(team, coach, "\n".join(lines))
+                    st.success(f"Saved {len(lines)} players + coach for {team}.")
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))

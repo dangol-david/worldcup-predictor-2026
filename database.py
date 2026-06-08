@@ -848,21 +848,54 @@ def get_squad(team: str) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
-def get_squad_players(team: str) -> list[str]:
-    """Return the list of player names for a team (empty if no squad saved)."""
+POSITIONS = ("GK", "DF", "MF", "FW")
+
+
+def parse_roster(players_text: str | None) -> list[dict[str, str]]:
+    """
+    Parse stored roster text into [{'pos': 'GK', 'name': 'Ronwen Williams'}, ...].
+    Each line is either 'POS|Name' (new format) or a bare 'Name' (legacy);
+    a bare name yields an empty position. Order is preserved.
+    """
+    roster: list[dict[str, str]] = []
+    for ln in (players_text or "").replace("\r", "").split("\n"):
+        ln = ln.strip()
+        if not ln:
+            continue
+        if "|" in ln:
+            pos, name = ln.split("|", 1)
+            pos, name = pos.strip().upper(), name.strip()
+        else:
+            pos, name = "", ln
+        if name:
+            roster.append({"pos": pos, "name": name})
+    return roster
+
+
+def get_squad_roster(team: str) -> list[dict[str, str]]:
+    """Return a team's roster as [{'pos', 'name'}, ...] (empty if none saved)."""
     sq = get_squad(team)
-    if not sq or not sq.get("players"):
+    if not sq:
         return []
-    return [ln for ln in sq["players"].split("\n") if ln.strip()]
+    return parse_roster(sq.get("players"))
 
 
-def players_for_match(match: dict[str, Any]) -> list[str]:
-    """Combined, de-duplicated roster of both teams in a match (order preserved)."""
-    seen: dict[str, None] = {}
+def get_squad_players(team: str) -> list[str]:
+    """Return just the player names for a team (empty if no squad saved)."""
+    return [r["name"] for r in get_squad_roster(team)]
+
+
+def players_for_match(match: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    Combined roster of both teams in a match, each entry tagged with its team
+    and position: [{'team', 'pos', 'name'}, ...]. Team A first, then Team B,
+    each in saved (GK→FW) order — ready to group/segregate in a dropdown.
+    """
+    out: list[dict[str, str]] = []
     for team in (match.get("team_a"), match.get("team_b")):
-        for p in get_squad_players(team or ""):
-            seen.setdefault(p, None)
-    return list(seen.keys())
+        for r in get_squad_roster(team or ""):
+            out.append({"team": team, "pos": r["pos"], "name": r["name"]})
+    return out
 
 
 def list_squads() -> list[dict[str, Any]]:

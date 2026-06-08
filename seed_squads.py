@@ -550,6 +550,78 @@ SQUADS: dict[str, tuple[str, list[str]]] = {
 }
 
 
+# Per-team position counts (GK, DF, MF, FW) applied IN ORDER to each squad's
+# flat list above (the lists are written keepers → defenders → midfielders →
+# forwards). Sum must equal the squad length; load() validates this.
+POS_ORDER = ("GK", "DF", "MF", "FW")
+POS_COUNTS: dict[str, tuple[int, int, int, int]] = {
+    "Mexico": (3, 6, 10, 7),
+    "South Africa": (3, 11, 4, 8),
+    "South Korea": (3, 10, 10, 3),
+    "Czechia": (3, 9, 9, 5),
+    "Canada": (3, 9, 10, 4),
+    "Bosnia and Herzegovina": (3, 8, 10, 5),
+    "Qatar": (3, 8, 6, 9),
+    "Switzerland": (3, 8, 10, 5),
+    "Brazil": (3, 8, 6, 9),
+    "Morocco": (3, 9, 7, 7),
+    "Haiti": (3, 8, 6, 9),
+    "Scotland": (3, 10, 8, 5),
+    "USA": (3, 10, 6, 7),
+    "Paraguay": (3, 8, 8, 7),
+    "Australia": (3, 10, 6, 7),
+    "Turkiye": (3, 9, 7, 7),
+    "Germany": (3, 7, 8, 7),
+    "Curacao": (3, 8, 7, 8),
+    "Ivory Coast": (3, 8, 6, 9),
+    "Ecuador": (3, 7, 7, 6),
+    "Netherlands": (3, 7, 9, 7),
+    "Japan": (3, 9, 9, 5),
+    "Sweden": (3, 10, 7, 6),
+    "Tunisia": (3, 9, 7, 7),
+    "Belgium": (3, 9, 6, 8),
+    "Egypt": (4, 9, 10, 4),
+    "Iran": (3, 8, 10, 5),
+    "New Zealand": (3, 9, 6, 8),
+    "Spain": (3, 8, 7, 8),
+    "Cape Verde": (3, 9, 6, 8),
+    "Saudi Arabia": (3, 11, 9, 3),
+    "Uruguay": (3, 9, 11, 3),
+    "France": (3, 9, 5, 9),
+    "Senegal": (3, 10, 7, 8),
+    "Iraq": (3, 10, 8, 5),
+    "Norway": (3, 9, 7, 7),
+    "Argentina": (3, 8, 7, 8),
+    "Algeria": (3, 9, 7, 7),
+    "Austria": (3, 9, 10, 3),
+    "Jordan": (3, 9, 7, 7),
+    "Portugal": (4, 9, 6, 8),
+    "Democratic Republic of Congo": (3, 9, 10, 4),
+    "Uzbekistan": (3, 10, 10, 3),
+    "Colombia": (3, 8, 10, 5),
+    "England": (3, 9, 7, 7),
+    "Croatia": (3, 7, 10, 6),
+    "Ghana": (3, 10, 5, 8),
+    "Panama": (3, 10, 9, 4),
+}
+
+
+def _roster_text(team: str, players: list[str]) -> str:
+    """Build 'POS|Name' lines using POS_COUNTS; fall back to bare names."""
+    counts = POS_COUNTS.get(team)
+    if not counts or sum(counts) != len(players):
+        if counts:
+            print(f"⚠️  {team}: position counts sum {sum(counts)} != "
+                  f"{len(players)} players — storing without positions.")
+        return "\n".join(players)
+    lines, i = [], 0
+    for pos, n in zip(POS_ORDER, counts):
+        for _ in range(n):
+            lines.append(f"{pos}|{players[i]}")
+            i += 1
+    return "\n".join(lines)
+
+
 def load(check_only: bool = False) -> None:
     db.init_db()
 
@@ -572,13 +644,27 @@ def load(check_only: bool = False) -> None:
         for t in missing:
             print(f"     - {t}")
 
+    # Report any position-count mismatches up front.
+    mismatch = [t for t, (_, players) in SQUADS.items()
+                if t in POS_COUNTS and sum(POS_COUNTS[t]) != len(players)]
+    no_counts = [t for t in SQUADS if t not in POS_COUNTS]
+    if mismatch:
+        print("⚠️  Position-count mismatches (will store without positions):")
+        for t in mismatch:
+            print(f"     - {t}: counts={sum(POS_COUNTS[t])} vs "
+                  f"{len(SQUADS[t][1])} players")
+    if no_counts:
+        print("ℹ️  Teams without POS_COUNTS (stored without positions): "
+              f"{', '.join(no_counts)}")
+
     if check_only:
         print(f"\n{len(SQUADS)} squads defined · "
-              f"{len(SQUADS) - len(unknown)} match a fixture team.")
+              f"{len(SQUADS) - len(unknown)} match a fixture team · "
+              f"{len(SQUADS) - len(mismatch) - len(no_counts)} with positions.")
         return
 
     for team, (coach, players) in SQUADS.items():
-        db.upsert_squad(team, coach, "\n".join(players))
+        db.upsert_squad(team, coach, _roster_text(team, players))
 
     print(f"✅ Loaded {len(SQUADS)} squads "
           f"({sum(len(p) for _, p in SQUADS.values())} players total).")
