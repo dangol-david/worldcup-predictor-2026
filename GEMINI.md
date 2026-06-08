@@ -12,7 +12,8 @@ You are the AI coding agent for **Predict & Win — 2026 FIFA World Cup**, a Str
 
 | File | Purpose |
 |---|---|
-| `app.py` | Streamlit dashboard. 9 tabs (Dashboard, Fixtures, Groups, Bracket, Daily Mode, Predict, My Picks, Leaderboard, Admin). Heavy use of injected CSS via `st.markdown(..., unsafe_allow_html=True)`. |
+| `app.py` | Streamlit dashboard. 10 tabs (Dashboard, Fixtures, Groups, Bracket, Daily Mode, Predict, My Picks, Leaderboard, Squads, Admin). Heavy use of injected CSS via `st.markdown(..., unsafe_allow_html=True)`. |
+| `.streamlit/config.toml` | Pins the dark theme (so text is readable in any browser) and binds the server to the LAN (`address=0.0.0.0`) so all players can connect. |
 | `database.py` | The *only* module that touches SQLite. Schema + all CRUD + group-standings + daily-mode functions. |
 | `game_logic.py` | Pure scoring functions. Easy to unit-test. `STAGE_MULTIPLIER` maps each stage to its point multiplier. |
 | `seed_data.py` | All 104 fixtures with teams, dates, venues. Run with `--reset` to wipe and reseed. |

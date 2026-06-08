@@ -38,19 +38,34 @@ To wipe and reseed (e.g. after editing fixtures):
 python seed_data.py --reset
 ```
 
-## The dashboard — 9 tabs
+## The dashboard — 10 tabs
 
 | Tab | What you see |
 |---|---|
-| 🏁 **Dashboard** | Hero header with kickoff countdown, KPI strip, today's daily-mode banner, recent daily winners strip, next 6 fixtures, top 5 leaderboard, latest results |
+| 🏁 **Dashboard** | Hero header with kickoff countdown, KPI strip, today's daily-mode banner, recent daily winners strip, next 6 fixtures **with your submitted pick + lock countdown**, top 5 leaderboard, latest results |
 | 📅 **Fixtures** | All 104 matches — filter by stage, status, group, or team |
 | 🅰️ **Groups** | Auto-computed standings for all 12 groups (P / W / D / L / GF / GA / GD / Pts) with qualification stripes |
 | 🏆 **Bracket** | Knockout bracket from Round of 16 through the Final, plus champion banner when the Final is done |
 | 📆 **Daily Mode** | Pick a tournament day · up to **10 players** can join · predict that day's matches · daily leaderboard · daily winner crowned when all matches complete |
-| 🎯 **Predict** | Pick winner, scoreline, and MOM for every upcoming fixture. Predictions lock once a result is posted |
-| 📊 **My Picks** | Player KPIs (totals, exact-score hits, MOM hits, correct-winner %) + full pick history |
-| 🏅 **Leaderboard** | Podium for top 3 + full ranked table broken down by stage and by category |
-| ⚙️ **Admin** | Password-protected (`admin123` — change in `app.py`). Submit results + highlights; everyone's predictions are scored instantly. Separate "edit highlights" mode for already-completed matches |
+| 🎯 **Predict** | Pick winner, scoreline, MOM, First Scorer + ⭐ Banker for every upcoming fixture. Predictions lock **3 hours before kickoff** |
+| 📊 **My Picks** | Player KPIs (totals, exact/MOM/first-scorer hits, bonus, correct-winner %) + full pick history |
+| 🏅 **Leaderboard** | Podium for top 3 + full ranked table broken down by stage and by category (incl. 1st-scorer & bonus) |
+| 👥 **Squads** | Browse each team's coach + roster (read-only; admins add them in the Admin tab) |
+| ⚙️ **Admin** | Password-protected (`admin123` — change in `app.py`). Submit results (score + MOM + first scorer + highlights), **manage squads & coaches**, or edit highlights on completed matches. Everyone's predictions score instantly |
+
+## Run it for your league (same Wi-Fi / LAN)
+
+`.streamlit/config.toml` pins the dark theme and binds the server to your whole
+network, so all 10 players can open it from their own phones/laptops:
+
+```bash
+streamlit run app.py
+```
+
+Streamlit prints a **Network URL** like `http://192.168.0.100:8501` — share that
+with players on the same Wi-Fi. (On first run, allow Python through the Windows
+Firewall when prompted, for Private networks.) Everyone shares one `worldcup.db`,
+so scores update live for all of them. Keep this one machine running as the host.
 
 ## Daily Mode
 

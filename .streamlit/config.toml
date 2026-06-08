@@ -1,0 +1,31 @@
+# Predict & Win — Streamlit configuration
+# ---------------------------------------------------------------------------
+# Pins the app to its designed dark theme AND exposes it on the local network
+# so every player on the same Wi-Fi/LAN can open it and track their own score.
+
+[theme]
+# Force the dark base so text stays light-on-dark no matter what each player's
+# browser / OS is set to (light or dark). This guarantees readable text for all
+# native Streamlit widgets (dropdown menus, dataframes, tooltips, steppers),
+# which the custom CSS alone does not cover.
+base                     = "dark"
+primaryColor             = "#C3FF3E"   # lime accent (buttons, active tabs)
+backgroundColor          = "#0B1421"   # app background (navy)
+secondaryBackgroundColor = "#152238"   # cards, sidebar, inputs
+textColor                = "#FAFAFA"   # body text
+font                     = "sans serif"
+
+[server]
+# Bind to 0.0.0.0 so the app is reachable from other devices on the LAN, not
+# just localhost. Players open  http://<HOST-LAN-IP>:8501  (e.g. the host's
+# current address printed by `streamlit run`).
+address              = "0.0.0.0"
+port                 = 8501
+headless             = true            # don't auto-open a browser / skip email prompt
+enableCORS           = true
+enableXsrfProtection = true
+# SQLite + Streamlit's script rerun model: keep a single server process so all
+# players share one worldcup.db.
+
+[browser]
+gatherUsageStats = false

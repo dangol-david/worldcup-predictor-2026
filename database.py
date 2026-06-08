@@ -121,6 +121,13 @@ CREATE TABLE IF NOT EXISTS daily_participants (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS squads (
+    team       TEXT PRIMARY KEY COLLATE NOCASE,
+    coach      TEXT,
+    players    TEXT,                       -- one player name per line
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_matches_stage  ON matches(stage);
 CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status);
 CREATE INDEX IF NOT EXISTS idx_matches_group  ON matches(group_name);
@@ -796,3 +803,79 @@ def set_match_highlights(match_id: int, highlights: str) -> None:
             "UPDATE matches SET highlights = ? WHERE match_id = ?",
             (cleaned, match_id),
         )
+
+
+# =============================================================================
+# Squads (admin-managed: coach + roster per team)
+# =============================================================================
+def _clean_players(players_text: str | None) -> str:
+    """Normalise a pasted roster into one trimmed player name per line."""
+    if not players_text:
+        return ""
+    lines = [ln.strip() for ln in players_text.replace("\r", "").split("\n")]
+    return "\n".join(ln for ln in lines if ln)
+
+
+def upsert_squad(team: str, coach: str | None, players_text: str | None) -> None:
+    """Insert or update a team's coach + roster (one player per line)."""
+    team = (team or "").strip()
+    if not team:
+        raise ValueError("Team is required.")
+    coach = (coach or "").strip() or None
+    players = _clean_players(players_text)
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO squads (team, coach, players, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(team) DO UPDATE SET
+                coach      = excluded.coach,
+                players    = excluded.players,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (team, coach, players),
+        )
+
+
+def get_squad(team: str) -> dict[str, Any] | None:
+    """Return {team, coach, players, updated_at} for a team, or None."""
+    if not team:
+        return None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM squads WHERE team = ?", (team.strip(),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_squad_players(team: str) -> list[str]:
+    """Return the list of player names for a team (empty if no squad saved)."""
+    sq = get_squad(team)
+    if not sq or not sq.get("players"):
+        return []
+    return [ln for ln in sq["players"].split("\n") if ln.strip()]
+
+
+def players_for_match(match: dict[str, Any]) -> list[str]:
+    """Combined, de-duplicated roster of both teams in a match (order preserved)."""
+    seen: dict[str, None] = {}
+    for team in (match.get("team_a"), match.get("team_b")):
+        for p in get_squad_players(team or ""):
+            seen.setdefault(p, None)
+    return list(seen.keys())
+
+
+def list_squads() -> list[dict[str, Any]]:
+    """All saved squads, alphabetical by team."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM squads ORDER BY team COLLATE NOCASE"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def squad_team_names() -> set[str]:
+    """Set of team names that have a squad saved (for quick 'has squad?' checks)."""
+    with get_connection() as conn:
+        rows = conn.execute("SELECT team FROM squads").fetchall()
+        return {r["team"] for r in rows}

@@ -421,6 +421,81 @@ h1, h2, h3, h4 { color: var(--text); font-family: 'Manrope', sans-serif; }
 .gst-table tr.q-win td:first-child { border-left: 3px solid var(--lime); }
 .gst-table tr.q-run td:first-child { border-left: 3px solid var(--cyan); }
 .gst-table tr.q-3rd td:first-child { border-left: 3px solid var(--gold); }
+
+/* --- Squad cards --- */
+.squad-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+}
+.squad-card.empty { border-style: dashed; opacity: 0.7; }
+.squad-card .sq-head {
+    font-family: 'Anton', sans-serif; font-size: 1.3rem; color: var(--text);
+    letter-spacing: 0.03em; display: flex; align-items: center; gap: 10px;
+    text-transform: uppercase;
+}
+.squad-card .sq-coach {
+    font-family: 'Space Mono', monospace; color: var(--gold);
+    font-size: 0.72rem; letter-spacing: 0.12em; margin-top: 6px;
+    text-transform: uppercase;
+}
+.squad-card .sq-count {
+    font-family: 'Space Mono', monospace; color: var(--muted);
+    font-size: 0.68rem; letter-spacing: 0.12em; margin-top: 2px;
+}
+.squad-card .sq-list {
+    margin: 10px 0 0 0; padding-left: 22px; columns: 2; column-gap: 18px;
+}
+.squad-card .sq-list li {
+    font-family: 'Manrope', sans-serif; font-size: 0.86rem; color: var(--text);
+    margin: 2px 0; break-inside: avoid;
+}
+
+/* --- Theme-safe text: keep everything readable in light OR dark browsers --- */
+/* Body copy, labels, captions, markdown, list items */
+.stApp, .stApp p, .stApp li, .stApp label, .stApp span,
+[data-testid="stMarkdownContainer"],
+[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] * ,
+.stCaption, [data-testid="stCaptionContainer"] {
+    color: var(--text);
+}
+.stApp [data-testid="stCaptionContainer"],
+.stApp [data-testid="stCaptionContainer"] * { color: var(--muted) !important; }
+
+/* Selectbox / multiselect closed control + the open popover menu */
+div[data-baseweb="select"] *,
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] div,
+ul[role="listbox"] li {
+    color: var(--text) !important;
+}
+div[data-baseweb="popover"] ul, ul[role="listbox"] {
+    background: var(--surface-2) !important; border: 1px solid var(--border) !important;
+}
+ul[role="listbox"] li:hover { background: var(--surface) !important; }
+
+/* Radio / checkbox option labels */
+.stRadio label, .stCheckbox label, [data-testid="stRadio"] label { color: var(--text) !important; }
+
+/* Inputs (incl. number-input stepper buttons) */
+.stTextInput input, .stNumberInput input, .stTextArea textarea,
+.stDateInput input {
+    color: var(--text) !important; background: var(--surface-2) !important;
+}
+[data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {
+    color: var(--text) !important;
+}
+
+/* Dataframe / table cells + headers */
+.stDataFrame, .stDataFrame * , [data-testid="stTable"] td, [data-testid="stTable"] th {
+    color: var(--text);
+}
+
+/* Alert boxes (st.info / success / warning / error) keep dark, readable text */
+[data-testid="stAlert"] { color: var(--text); }
+[data-testid="stAlert"] p { color: inherit; }
+
+/* Expander header + tab labels */
+[data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color: var(--text); }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -581,6 +656,29 @@ def render_match_grid(matches: list[dict], cols: int = 2) -> None:
             st.markdown(render_match_card(m), unsafe_allow_html=True)
 
 
+def _player_field(container, label: str, players: list[str],
+                  existing: str | None, key: str) -> str:
+    """
+    Player-name input. If a squad roster is available, show a dropdown of real
+    players plus a free-text override for anyone not listed; otherwise plain text.
+    Returns the chosen name ("" if none). Safe to call inside an st.form.
+    """
+    if players:
+        opts = ["—"] + players
+        if existing and existing not in opts:
+            opts.insert(1, existing)
+        idx = opts.index(existing) if existing in opts else 0
+        sel = container.selectbox(label, opts, index=idx, key=f"{key}_sel")
+        other = container.text_input(
+            f"{label} — or type a name not in the list",
+            value="", key=f"{key}_txt",
+            placeholder="…type another name",
+            label_visibility="collapsed",
+        )
+        return other.strip() or ("" if sel == "—" else sel)
+    return container.text_input(label, value=existing or "", key=key).strip()
+
+
 def render_prediction_summary(pred: dict | None) -> str:
     """One-line read-only summary of a player's pick (used when locked / on dash)."""
     if not pred:
@@ -634,16 +732,16 @@ def _render_prediction_form(user: dict, m: dict, key_prefix: str = "pred") -> No
             "Predicted winner", winner_options, index=idx,
             key=f"{key_prefix}_w_{m['match_id']}",
         )
+        players = db.players_for_match(m)
         col3, col4 = st.columns(2)
-        pred_mom = col3.text_input(
-            "Man of the Match (+3, optional)",
-            value=existing["predicted_mom"] if existing and existing["predicted_mom"] else "",
+        pred_mom = _player_field(
+            col3, "Man of the Match (+3, optional)", players,
+            existing["predicted_mom"] if existing else None,
             key=f"{key_prefix}_mom_{m['match_id']}",
         )
-        pred_scorer = col4.text_input(
-            "First goal scorer (+4, optional)",
-            value=(existing["predicted_first_scorer"]
-                   if existing and existing["predicted_first_scorer"] else ""),
+        pred_scorer = _player_field(
+            col4, "First goal scorer (+4, optional)", players,
+            existing["predicted_first_scorer"] if existing else None,
             key=f"{key_prefix}_scorer_{m['match_id']}",
         )
         make_banker = st.checkbox(
@@ -1320,6 +1418,57 @@ def tab_daily(user: dict | None) -> None:
 
 
 # =============================================================================
+# Tab: Squads
+# =============================================================================
+def tab_squads() -> None:
+    st.markdown('<h2 style="font-family:Anton,sans-serif;letter-spacing:0.05em;'
+                'color:#00D9FF;">👥 SQUADS & COACHES</h2>', unsafe_allow_html=True)
+
+    all_m = db.list_matches()
+    real_teams = sorted({t for m in all_m
+                         for t in (m["team_a"], m["team_b"]) if t in FLAGS})
+    squads = {s["team"]: s for s in db.list_squads()}
+    have = len(squads)
+    st.caption(f"{have} of {len(real_teams)} teams have rosters added. "
+               "Admins manage these in the ⚙️ Admin tab → “Manage squads & coaches”.")
+
+    if real_teams:
+        only_added = st.toggle("Show only teams with a squad added", value=have > 0)
+        teams_to_show = [t for t in real_teams if (t in squads or not only_added)]
+        if not teams_to_show:
+            st.info("No squads added yet.")
+            return
+        for i in range(0, len(teams_to_show), 2):
+            cols = st.columns(2)
+            for j, team in enumerate(teams_to_show[i:i + 2]):
+                sq = squads.get(team)
+                with cols[j]:
+                    if sq:
+                        players = [p for p in (sq["players"] or "").split("\n") if p.strip()]
+                        coach = escape(sq["coach"]) if sq["coach"] else "—"
+                        plist = "".join(
+                            f'<li>{escape(p)}</li>' for p in players
+                        ) or '<li style="color:#8A95B0;">No players listed.</li>'
+                        st.markdown(f"""
+<div class="squad-card">
+  <div class="sq-head">{flag(team)} <span>{escape(team)}</span></div>
+  <div class="sq-coach">COACH · {coach}</div>
+  <div class="sq-count">{len(players)} players</div>
+  <ol class="sq-list">{plist}</ol>
+</div>
+""", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+<div class="squad-card empty">
+  <div class="sq-head">{flag(team)} <span>{escape(team)}</span></div>
+  <div class="sq-coach">Squad not added yet.</div>
+</div>
+""", unsafe_allow_html=True)
+    else:
+        st.info("No teams in the database.")
+
+
+# =============================================================================
 # Tab: Admin
 # =============================================================================
 def tab_admin() -> None:
@@ -1334,6 +1483,7 @@ def tab_admin() -> None:
         return
 
     sub = st.radio("Action", ["📥 Submit a result",
+                                "👥 Manage squads & coaches",
                                 "📝 Add / edit highlights for a completed match"],
                     horizontal=True, label_visibility="collapsed")
 
@@ -1355,9 +1505,12 @@ def tab_admin() -> None:
             c1, c2 = st.columns(2)
             sa = c1.number_input(f"{m['team_a']} goals", 0, 20, 0)
             sb = c2.number_input(f"{m['team_b']} goals", 0, 20, 0)
+            players = db.players_for_match(m)
             c3, c4 = st.columns(2)
-            mom = c3.text_input("Man of the Match (player name)")
-            first_scorer = c4.text_input("First goal scorer (player name)")
+            mom = _player_field(c3, "Man of the Match (player name)", players,
+                                None, key=f"adm_mom_{m['match_id']}")
+            first_scorer = _player_field(c4, "First goal scorer (player name)", players,
+                                         None, key=f"adm_fs_{m['match_id']}")
             highlights = st.text_area(
                 "Highlights / recap (optional, 1–3 sentences)",
                 placeholder="Brace from Vinicius caps a clinical Brazil performance...",
@@ -1378,6 +1531,41 @@ def tab_admin() -> None:
                         st.rerun()
                     except ValueError as e:
                         st.error(str(e))
+
+    elif sub == "👥 Manage squads & coaches":
+        st.caption("Add each team's coach and roster (one player per line — paste "
+                   "from the FIFA site or Wikipedia). Saved players become "
+                   "dropdowns for Man-of-the-Match & First-Scorer picks.")
+        all_m = db.list_matches()
+        real_teams = sorted({t for m in all_m
+                             for t in (m["team_a"], m["team_b"]) if t in FLAGS})
+        have = db.squad_team_names()
+        st.markdown(
+            f"**{len(have)} / {len(real_teams)}** teams have a squad saved.")
+
+        def _team_label(t: str) -> str:
+            return f"{'✅' if t in have else '⚪'} {flag(t)} {t}"
+
+        team = st.selectbox("Team", real_teams, format_func=_team_label,
+                            key="adm_sq_team")
+        existing = db.get_squad(team)
+        with st.form(f"squad_form_{team}"):
+            coach = st.text_input(
+                "Head coach", value=(existing["coach"] if existing else "") or "")
+            roster = st.text_area(
+                "Players (one per line)",
+                value=(existing["players"] if existing else "") or "",
+                height=320,
+                placeholder="Lionel Messi\nEmiliano Martínez\nJulián Álvarez\n…",
+            )
+            if st.form_submit_button(f"Save squad for {team}"):
+                try:
+                    db.upsert_squad(team, coach, roster)
+                    n = len([ln for ln in roster.splitlines() if ln.strip()])
+                    st.success(f"Saved {n} players + coach for {team}.")
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
 
     else:
         completed = db.list_matches(status="completed")
@@ -1414,7 +1602,7 @@ def main() -> None:
     tabs = st.tabs([
         "🏁 Dashboard", "📅 Fixtures", "🅰️ Groups", "🏆 Bracket",
         "📆 Daily Mode",
-        "🎯 Predict", "📊 My Picks", "🏅 Leaderboard", "⚙️ Admin",
+        "🎯 Predict", "📊 My Picks", "🏅 Leaderboard", "👥 Squads", "⚙️ Admin",
     ])
 
     with tabs[0]: tab_dashboard(user)
@@ -1429,7 +1617,8 @@ def main() -> None:
         if user: tab_my_predictions(user)
         else: st.info("👈 Pick a player to view your picks.")
     with tabs[7]: tab_leaderboard()
-    with tabs[8]: tab_admin()
+    with tabs[8]: tab_squads()
+    with tabs[9]: tab_admin()
 
 
 if __name__ == "__main__":
