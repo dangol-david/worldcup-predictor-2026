@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from database import DB_PATH, create_match, get_connection, init_db
@@ -31,6 +32,19 @@ from database import DB_PATH, create_match, get_connection, init_db
 # Tuple shape: (match_number, group, team_a, team_b, "YYYY-MM-DD HH:MM ET",
 #               venue, city, country)
 # Knockout placeholders use "—" as the group.
+#
+# Kickoff times below are written in US Eastern Time (EDT) to match the official
+# FIFA schedule, but stored in NEPAL TIME (NPT, UTC+5:45). The whole tournament
+# (Jun 11 – Jul 19, 2026) falls in EDT (UTC-4), so the offset is a constant
+# +9h45m. Storing local Nepal time keeps the 3-hour lock and daily-mode day
+# grouping correct for a Nepal-based league.
+ET_TO_NPT = timedelta(hours=9, minutes=45)
+
+
+def _to_nepal(et_str: str) -> str:
+    """Convert a naive 'YYYY-MM-DD HH:MM' Eastern time string to Nepal time."""
+    return (datetime.strptime(et_str, "%Y-%m-%d %H:%M") + ET_TO_NPT
+            ).strftime("%Y-%m-%d %H:%M")
 
 GROUP_STAGE = [
     # ---- Group A
@@ -192,7 +206,7 @@ def _seed_stage(rows, stage: str) -> None:
             num, a, b, when, venue, city, country = r
             grp = None
         create_match(
-            stage=stage, team_a=a, team_b=b, match_date=when,
+            stage=stage, team_a=a, team_b=b, match_date=_to_nepal(when),
             venue=venue, city=city, country=country,
             match_number=num, group_name=grp,
         )

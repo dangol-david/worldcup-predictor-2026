@@ -635,7 +635,7 @@ def get_tournament_winner() -> dict[str, Any] | None:
 # Daily Mode
 # =============================================================================
 def get_matches_for_day(day: str) -> list[dict[str, Any]]:
-    """Matches whose match_date falls on the given calendar day (YYYY-MM-DD, ET)."""
+    """Matches whose match_date falls on the given calendar day (YYYY-MM-DD, NPT)."""
     with get_connection() as conn:
         rows = conn.execute(
             "SELECT * FROM matches "

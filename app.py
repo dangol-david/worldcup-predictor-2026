@@ -31,10 +31,11 @@ st.set_page_config(
 
 db.init_db()
 
-# Tournament constants
-KICKOFF_ISO       = "2026-06-11 15:00"     # Mexico vs South Africa, ET
+# Tournament constants (Nepal time, NPT = UTC+5:45 — match times are stored
+# in Nepal time; the ET kickoff + 9h45m).
+KICKOFF_ISO       = "2026-06-12 00:45"     # Mexico vs South Africa (15:00 ET)
 TOURNAMENT_START  = datetime.fromisoformat(KICKOFF_ISO)
-FINAL_ISO         = "2026-07-19 15:00"
+FINAL_ISO         = "2026-07-20 00:45"     # Final (15:00 ET on Jul 19)
 TOURNAMENT_END    = datetime.fromisoformat(FINAL_ISO)
 
 # Stage palette (must match CSS class names below)
@@ -515,7 +516,7 @@ def days_to_kickoff() -> int:
 
 def fmt_date(iso_str: str) -> str:
     dt = datetime.fromisoformat(iso_str)
-    return dt.strftime("%a %b %d · %H:%M ET")
+    return dt.strftime("%a %b %d · %H:%M NPT")
 
 
 def _fmt_countdown(delta: timedelta) -> str:

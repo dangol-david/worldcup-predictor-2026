@@ -95,6 +95,7 @@ Bonus mechanics (applied in `evaluate_predictions_for_match`, on top of the base
 - Knockout placeholder teams ("Winner Group A", "Runner-up B", "Winner Match 73", …) require manual updates as the bracket fills.
 - No user authentication beyond a username selector — fine for a small private league, not for public deployment.
 - Kickoff lockout is time-based (3h before kickoff) and compares against the
-  server clock; kickoff times are stored naive in ET, so run in ET or adjust
-  `LOCK_LEAD_HOURS`.
+  server clock. Match times are stored naive in **Nepal time (NPT, UTC+5:45)**;
+  `seed_data._to_nepal` converts the official ET schedule (+9h45m) on seed, so
+  run the app on a Nepali clock (or adjust the offset / `LOCK_LEAD_HOURS`).
 - The `worldcup.db` file is local; sharing requires file transfer or a hosted DB.

@@ -43,9 +43,10 @@ Where you see the deadline:
 - **Predict tab**: each match is prefixed `🔒` when locked, `⭐` when it's your
   Banker, `✅` when you've picked, `⚪` when you haven't.
 
-> ⏰ **Timezone note:** kickoff times are stored in US Eastern Time (ET). The lock
-> compares against the server clock, so run the app in ET (or adjust
-> `LOCK_LEAD_HOURS`) if your league is elsewhere.
+> ⏰ **Timezone note:** kickoff times are shown in **Nepal time (NPT, UTC+5:45)**.
+> They're stored in Nepal time (the official ET schedule + 9h45m), so the 3-hour
+> lock and daily-mode day grouping line up with a Nepal-based league running the
+> app on a Nepali clock.
 
 ---
 
